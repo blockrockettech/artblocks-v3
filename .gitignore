@@ -1,0 +1,10 @@
+.idea
+rendar-contracts.iml
+node_modules/
+build
+.DS_Store
+/coverage/
+/coverage.json
+coverageEnv
+allFiredEvents
+scTopics

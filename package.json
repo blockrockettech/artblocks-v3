@@ -1,0 +1,31 @@
+{
+  "name": "simple-artist-token-contracts",
+  "version": "1.0.0",
+  "description": "Rendar Token Smart Contracts",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "truffle test --network development",
+    "coverage": "./node_modules/.bin/solidity-coverage",
+    "preinstall": "rm -rf node_modules/web3-providers-ws/node_modules/websocket/.git"
+  },
+  "author": "james.morgan@blockrocket.tech",
+  "license": "MIT",
+  "dependencies": {
+    "i": "^0.3.6",
+    "npm": "^6.9.0"
+  },
+  "devDependencies": {
+    "openzeppelin-solidity": "2.3.0",
+    "openzeppelin-test-helpers": "0.1.2",
+    "solidity-coverage": "github:rotcivegaf/solidity-coverage",
+    "truffle-flattener": "^1.3.0",
+    "truffle-hdwallet-provider": "^1.0.10"
+  },
+  "engines": {
+    "node": ">= 10.0.0",
+    "npm": ">= 6.0.0"
+  }
+}
