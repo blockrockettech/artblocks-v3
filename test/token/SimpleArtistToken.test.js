@@ -58,7 +58,7 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
             assert.isNotNull(hash);
         });
 
-        context('splitFunds', function () {
+        describe('splitFunds', function () {
 
             it('all parties get the correct amounts', async function () {
                 const foundationAddress = await this.token.foundationAddress();
@@ -207,7 +207,55 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
                 resetTokenURI.should.be.equal(`https://artblocks.com/${firstTokenId}`);
             });
         });
+    });
 
+
+    // function updateFoundationAddress(address payable _foundationAddress) public onlyWhitelisted returns (bool) {
+    //     foundationAddress = _foundationAddress;
+    //     return true;
+    // }
+    //
+    // function updateFoundationPercentage(uint256 _foundationPercentage) public onlyWhitelisted returns (bool) {
+    //     foundationPercentage = _foundationPercentage;
+    //     return true;
+    // }
+    //
+    // function updateMaxInvocations(uint256 _maxInvocations) public onlyWhitelisted returns (bool) {
+    //     maxInvocations = _maxInvocations;
+    //     return true;
+    // }
+
+    context('ensure only owner can ArtistAddress', function () {
+        it('should revert if not owner', async function () {
+            await shouldFail.reverting(this.token.updateArtistAddress(tokenOwnerOne, {from: tokenOwnerOne}));
+        });
+
+        it('should update if owner', async function () {
+            await this.token.updateArtistAddress(tokenOwnerOne, {from: creator});
+            (await this.token.artistAddress()).should.be.equal(tokenOwnerOne);
+        });
+    });
+
+    context('ensure only owner can PricePerTokenInWei', function () {
+        it('should revert if not owner', async function () {
+            await shouldFail.reverting(this.token.updatePricePerTokenInWei(new BN(2), {from: tokenOwnerOne}));
+        });
+
+        it('should update if owner', async function () {
+            await this.token.updatePricePerTokenInWei(new BN(2), {from: creator});
+            (await this.token.pricePerTokenInWei()).should.be.bignumber.equal('2');
+        });
+    });
+
+    context('ensure only owner can FoundationAddress', function () {
+        it('should revert if not owner', async function () {
+            await shouldFail.reverting(this.token.updateFoundationAddress(tokenOwnerOne, {from: tokenOwnerOne}));
+        });
+
+        it('should update if owner', async function () {
+            await this.token.updateFoundationAddress(tokenOwnerOne, {from: creator});
+            (await this.token.foundationAddress()).should.be.equal(tokenOwnerOne);
+        });
     });
 
     async function getGasCosts (receipt) {

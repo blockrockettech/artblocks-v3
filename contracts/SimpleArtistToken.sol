@@ -29,16 +29,15 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     address payable public foundationAddress = 0xf43aE50C468c3D3Fa0C3dC3454E797317EF53078;
     uint256 public foundationPercentage = 5; // 5% to foundation
 
+    uint256 public maxInvocations = 1000000;
+
     mapping(bytes32 => uint256) public hashToTokenId;
     mapping(uint256 => bytes32) public tokenIdToHash;
 
     mapping(uint256 => string) public staticIpfsImageLink;
 
 
-
     // checksum
-
-    // max invocations
 
 
     ///////////////
@@ -113,6 +112,26 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
 
     function updateArtistAddress(address payable _artistAddress) public onlyWhitelisted returns (bool) {
         artistAddress = _artistAddress;
+        return true;
+    }
+
+    function updatePricePerTokenInWei(uint256 _pricePerTokenInWei) public onlyWhitelisted returns (bool) {
+        pricePerTokenInWei = _pricePerTokenInWei;
+        return true;
+    }
+
+    function updateFoundationAddress(address payable _foundationAddress) public onlyWhitelisted returns (bool) {
+        foundationAddress = _foundationAddress;
+        return true;
+    }
+
+    function updateFoundationPercentage(uint256 _foundationPercentage) public onlyWhitelisted returns (bool) {
+        foundationPercentage = _foundationPercentage;
+        return true;
+    }
+
+    function updateMaxInvocations(uint256 _maxInvocations) public onlyWhitelisted returns (bool) {
+        maxInvocations = _maxInvocations;
         return true;
     }
 
