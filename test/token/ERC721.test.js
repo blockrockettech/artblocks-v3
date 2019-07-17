@@ -8,9 +8,11 @@ contract('ERC721', function ([_, creator, tokenOwner, other, artistAccount, ...a
 
     const tokenURI = '123abc456def987';
     const tokenBaseUri = 'https://ipfs.com';
+    let price;
 
     beforeEach(async function () {
         this.token = await SimpleArtistToken.new(other, new BN(1), tokenBaseUri, {from: creator});
+        price = await this.token.pricePerTokenInWei();
     });
 
     shouldBehaveLikeERC721(creator, creator, accounts);
@@ -23,7 +25,7 @@ contract('ERC721', function ([_, creator, tokenOwner, other, artistAccount, ...a
 
             it('reverts with a null destination address', async function () {
                 await shouldFail(
-                    this.token.purchaseTo(ZERO_ADDRESS, {from: creator}), 'ERC721: mint to the zero address'
+                    this.token.purchaseTo(ZERO_ADDRESS, {from: creator, value: price}), 'ERC721: mint to the zero address'
                 );
             });
 

@@ -1,7 +1,7 @@
 const {BN, constants, expectEvent, shouldFail, ether, balance, expect} = require('openzeppelin-test-helpers');
 const {ZERO_ADDRESS} = constants;
 
-const { assert } = require('chai')
+const {assert} = require('chai');
 
 const SimpleArtistToken = artifacts.require('SimpleArtistToken.sol');
 
@@ -9,9 +9,11 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
 
     const tokenURI = '123abc456def987';
     const tokenBaseUri = 'https://artblocks.com/';
+    let price;
 
     beforeEach(async function () {
-        this.token = await SimpleArtistToken.new(artistsAccount, new BN(1), tokenBaseUri, {from: creator});
+        this.token = await SimpleArtistToken.new(artistsAccount, new BN(100), tokenBaseUri, {from: creator});
+        price = await this.token.pricePerTokenInWei();
     });
 
     describe('constructor setup', async function () {
@@ -32,7 +34,7 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
 
         it('pricePerTokenInWei()', async function () {
             const pricePerTokenInWei = await this.token.pricePerTokenInWei();
-            pricePerTokenInWei.should.be.bignumber.equal('1');
+            pricePerTokenInWei.should.be.bignumber.equal('100');
         });
     });
 
@@ -40,7 +42,7 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
 
         it('should have token ID and hash', async function () {
 
-            const {logs} = await this.token.purchaseTo(tokenOwnerOne, {from: creator});
+            const {logs} = await this.token.purchaseTo(tokenOwnerOne, {from: creator, value: price});
             expectEvent.inLogs(logs, 'Transfer', {
                 from: ZERO_ADDRESS,
                 to: tokenOwnerOne,
@@ -56,56 +58,106 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
             assert.isNotNull(hash);
         });
 
-        // split funds check
+        context('splitFunds', function () {
+
+            it('all parties get the correct amounts', async function () {
+                const foundationAddress = await this.token.foundationAddress();
+                const foundationPercentage = await this.token.foundationPercentage();
+                const artistAddress = await this.token.artistAddress();
+
+                const foundationAddressWallet = new BN((await web3.eth.getBalance(foundationAddress)));
+                const artistAddressWallet = new BN((await web3.eth.getBalance(artistAddress)));
+                const purchaserWallet = new BN((await web3.eth.getBalance(tokenOwnerOne)));
+
+                const receipt = await this.token.purchaseTo(tokenOwnerOne, {
+                    from: tokenOwnerOne,
+                    value: price
+                });
+                const gasCosts = await getGasCosts(receipt);
+
+                const foundationAddressWalletAfter = new BN((await web3.eth.getBalance(foundationAddress)));
+                const artistAddressWalletAfter = new BN((await web3.eth.getBalance(artistAddress)));
+                const purchaserWalletAfter = new BN((await web3.eth.getBalance(tokenOwnerOne)));
+
+                const foundationSplit = price.div(new BN(100)).mul(foundationPercentage);
+                const artistSplit = price.sub(foundationSplit);
+
+                // 95% of value sent
+                artistAddressWalletAfter.should.be.bignumber.equal(artistAddressWallet.add(artistSplit));
+
+                // 5% of current
+                foundationAddressWalletAfter.should.be.bignumber.equal(foundationAddressWallet.add(foundationSplit));
+
+                // check refund is applied and only pay for current price, not the overpay
+                purchaserWalletAfter.should.be.bignumber.equal(purchaserWallet.sub(gasCosts).sub(price));
+            });
+
+            it('all parties get the correct amounts when overpaid (same rules apply)', async function () {
+
+                const overpay = price.add(new BN(100));
+
+                const foundationAddress = await this.token.foundationAddress();
+                const foundationPercentage = await this.token.foundationPercentage();
+                const artistAddress = await this.token.artistAddress();
+
+                const foundationAddressWallet = new BN((await web3.eth.getBalance(foundationAddress)));
+                const artistAddressWallet = new BN((await web3.eth.getBalance(artistAddress)));
+                const purchaserWallet = new BN((await web3.eth.getBalance(tokenOwnerOne)));
+
+                const receipt = await this.token.purchaseTo(tokenOwnerOne, {
+                    from: tokenOwnerOne,
+                    value: overpay
+                });
+                const gasCosts = await getGasCosts(receipt);
+
+                const foundationAddressWalletAfter = new BN((await web3.eth.getBalance(foundationAddress)));
+                const artistAddressWalletAfter = new BN((await web3.eth.getBalance(artistAddress)));
+                const purchaserWalletAfter = new BN((await web3.eth.getBalance(tokenOwnerOne)));
+
+                const foundationSplit = overpay.div(new BN(100)).mul(foundationPercentage);
+                const artistSplit = overpay.sub(foundationSplit);
+
+                // 95% of value sent
+                artistAddressWalletAfter.should.be.bignumber.equal(artistAddressWallet.add(artistSplit));
+
+                // 5% of current
+                foundationAddressWalletAfter.should.be.bignumber.equal(foundationAddressWallet.add(foundationSplit));
+
+                // check refund is applied and only pay for current price, not the overpay
+                purchaserWalletAfter.should.be.bignumber.equal(purchaserWallet.sub(gasCosts).sub(overpay));
+            });
+        });
     });
 
     context('ensure only owner can set base URI', function () {
-        it('should revert if empty', async function () {
-            await shouldFail.reverting(this.token.updateTokenBaseURI('', {from: creator}));
-        });
-
         it('should revert if not owner', async function () {
             await shouldFail.reverting(this.token.updateTokenBaseURI('fc.xyz', {from: tokenOwnerOne}));
         });
 
         it('should reset if owner', async function () {
-            const {logs} = await this.token.updateTokenBaseURI('http://hello', {from: creator});
-            expectEvent.inLogs(
-                logs,
-                `TokenBaseURIChanged`,
-                {_new: 'http://hello'}
-            );
+            await this.token.updateTokenBaseURI('http://hello', {from: creator});
             (await this.token.tokenBaseURI()).should.be.equal('http://hello');
         });
     });
 
     context('ensure only owner can base IPFS URI', function () {
-        it('should revert if empty', async function () {
-            await shouldFail.reverting(this.token.updateTokenBaseIpfsURI('', {from: creator}));
-        });
-
         it('should revert if not owner', async function () {
             await shouldFail.reverting(this.token.updateTokenBaseIpfsURI('fc.xyz', {from: tokenOwnerOne}));
         });
 
         it('should reset if owner', async function () {
-            const {logs} = await this.token.updateTokenBaseIpfsURI('http://hello', {from: creator});
-            expectEvent.inLogs(
-                logs,
-                `TokenBaseIPFSURIChanged`,
-                {_new: 'http://hello'}
-            );
+            await this.token.updateTokenBaseIpfsURI('http://hello', {from: creator});
             (await this.token.tokenBaseIpfsURI()).should.be.equal('http://hello');
         });
     });
 
     context('static and dynamic IPFS images', function () {
 
-        const staticIpfsHash = "123-abc-456-def";
+        const staticIpfsHash = '123-abc-456-def';
         let firstTokenId;
 
         beforeEach(async function () {
-            await this.token.purchaseTo(tokenOwnerOne, {from: tokenOwnerOne});
+            await this.token.purchaseTo(tokenOwnerOne, {from: tokenOwnerOne, value: price});
 
             const tokens = await this.token.tokensOfOwner(tokenOwnerOne);
             tokens.length.should.be.equal(1);
@@ -115,27 +167,14 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
 
         context('if whitelisted', function () {
             it('can set static IPFS hash', async function () {
-                const {logs} = await this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: creator});
-                expectEvent.inLogs(
-                    logs,
-                    `StaticIpfsTokenURISet`,
-                    {
-                        _tokenId: firstTokenId,
-                        _ipfsHash: staticIpfsHash
-                    }
-                );
+                await this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: creator});
+                (await this.token.tokenURI(firstTokenId)).should.be.equal('https://ipfs.infura.io/ipfs/123-abc-456-def');
             });
 
             it('can remove static IPFS hash', async function () {
                 await this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: creator});
-                const {logs} = await this.token.clearIpfsImageUri(firstTokenId, {from: creator});
-                expectEvent.inLogs(
-                    logs,
-                    `StaticIpfsTokenURICleared`,
-                    {
-                        _tokenId: firstTokenId
-                    }
-                );
+                await this.token.clearIpfsImageUri(firstTokenId, {from: creator});
+                (await this.token.tokenURI(firstTokenId)).should.be.equal(`https://artblocks.com/${firstTokenId}`);
             });
         });
 
@@ -155,13 +194,13 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
             it('will use static IPFS hash if found', async function () {
                 await this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: creator});
                 const tokenURI = await this.token.tokenURI(firstTokenId);
-                tokenURI.should.be.equal("https://ipfs.infura.io/ipfs/123-abc-456-def");
+                tokenURI.should.be.equal('https://ipfs.infura.io/ipfs/123-abc-456-def');
             });
 
             it('will go back to using dynamic  URI if static set and then cleared', async function () {
                 await this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: creator});
                 const newTokenURI = await this.token.tokenURI(firstTokenId);
-                newTokenURI.should.be.equal("https://ipfs.infura.io/ipfs/123-abc-456-def");
+                newTokenURI.should.be.equal('https://ipfs.infura.io/ipfs/123-abc-456-def');
 
                 await this.token.clearIpfsImageUri(firstTokenId, {from: creator});
                 const resetTokenURI = await this.token.tokenURI(firstTokenId);
@@ -170,7 +209,6 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
         });
 
     });
-
 
     async function getGasCosts (receipt) {
         let tx = await web3.eth.getTransaction(receipt.tx);

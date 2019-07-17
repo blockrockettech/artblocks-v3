@@ -15,23 +15,6 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     // Events //
     ////////////
 
-    event TokenBaseURIChanged(
-        string _new
-    );
-
-    event TokenBaseIPFSURIChanged(
-        string _new
-    );
-
-    event StaticIpfsTokenURISet(
-        uint256 indexed _tokenId,
-        string _ipfsHash
-    );
-
-    event StaticIpfsTokenURICleared(
-        uint256 indexed _tokenId
-    );
-
 
     ///////////////
     // Variables //
@@ -55,7 +38,7 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
 
     // checksum
 
-    //
+    // max invocations
 
 
     ///////////////
@@ -88,6 +71,7 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     }
 
     function purchaseTo(address _to) public payable returns (uint256 _tokenId) {
+        require(msg.value >= pricePerTokenInWei, "Must send at least pricePerTokenInWei");
 
         uint256 number = block.number;
         bytes32 hash = keccak256(abi.encodePacked(number));
@@ -127,43 +111,28 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     //////////////////////////
 
 
-    function updateArtistAddress(address payable _artistAddress) external onlyWhitelisted {
+    function updateArtistAddress(address payable _artistAddress) public onlyWhitelisted returns (bool) {
         artistAddress = _artistAddress;
+        return true;
     }
 
     function updateTokenBaseURI(string memory _newBaseURI) public onlyWhitelisted returns (bool) {
-        require(bytes(_newBaseURI).length != 0, "Base URI invalid");
         tokenBaseURI = _newBaseURI;
-
-        emit TokenBaseURIChanged(_newBaseURI);
-
         return true;
     }
 
     function updateTokenBaseIpfsURI(string memory _tokenBaseIpfsURI) public onlyWhitelisted returns (bool) {
-        require(bytes(_tokenBaseIpfsURI).length != 0, "Base IPFS URI invalid");
         tokenBaseIpfsURI = _tokenBaseIpfsURI;
-
-        emit TokenBaseIPFSURIChanged(_tokenBaseIpfsURI);
-
         return true;
     }
 
     function overrideDynamicImageWithIpfsLink(uint256 _tokenId, string memory _ipfsHash) public onlyWhitelisted returns (bool) {
-        require(bytes(_ipfsHash).length != 0, "Base IPFS URI invalid");
-
         staticIpfsImageLink[_tokenId] = _ipfsHash;
-
-        emit StaticIpfsTokenURISet(_tokenId, _ipfsHash);
-
         return true;
     }
 
     function clearIpfsImageUri(uint256 _tokenId) public onlyWhitelisted returns (bool) {
         delete staticIpfsImageLink[_tokenId];
-
-        emit StaticIpfsTokenURICleared(_tokenId);
-
         return true;
     }
 
