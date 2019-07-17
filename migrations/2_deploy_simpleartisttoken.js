@@ -6,5 +6,5 @@ module.exports = async function (deployer, network, accounts) {
 
     const artblocksAccount = getAccountOne(accounts, network);
 
-    await deployer.deploy(SimpleArtistToken, artblocksAccount, 1, {from: artblocksAccount});
+    await deployer.deploy(SimpleArtistToken, artblocksAccount, 1, 'ipfs', {from: artblocksAccount});
 };

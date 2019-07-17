@@ -7,9 +7,10 @@ const SimpleArtistToken = artifacts.require('SimpleArtistToken.sol');
 contract('ERC721', function ([_, creator, tokenOwner, other, artistAccount, ...accounts]) {
 
     const tokenURI = '123abc456def987';
+    const tokenBaseUri = 'https://ipfs.com';
 
     beforeEach(async function () {
-        this.token = await SimpleArtistToken.new(other, new BN(1), {from: creator});
+        this.token = await SimpleArtistToken.new(other, new BN(1), tokenBaseUri, {from: creator});
     });
 
     shouldBehaveLikeERC721(creator, creator, accounts);

@@ -7,9 +7,10 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
 
     const tokenURI = '123abc456def987';
     const editionPrice = ether('1');
+    const tokenBaseUri = 'https://artblocks.com/';
 
     beforeEach(async function () {
-        this.token = await SimpleArtistToken.new(artistsAccount, new BN(1), {from: creator});
+        this.token = await SimpleArtistToken.new(artistsAccount, new BN(1), tokenBaseUri, {from: creator});
     });
 
     describe('name() and symbol()', async function () {
@@ -32,11 +33,125 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
         it('should have token ID and blockhash', async function () {
 
             const tokens = await this.token.tokensOfOwner(tokenOwnerOne);
-            console.log(tokens[0].toString());
-            console.log(await this.token.tokenIdToBlockhash(tokens[0].toString()));
+            tokens.length.should.be.equal(2);
 
-            console.log(await this.token.tokenIdToBlockhash(tokens[1].toString()));
+            console.log(tokens[0].toString());
+            console.log(await this.token.tokenIdToHash(tokens[0].toString()));
+
+            console.log(await this.token.tokenIdToHash(tokens[1].toString()));
             console.log(tokens[1].toString());
+        });
+
+    });
+
+    context('ensure only owner can set base URI', function () {
+        it('should revert if empty', async function () {
+            await shouldFail.reverting(this.token.updateTokenBaseURI('', {from: creator}));
+        });
+
+        it('should revert if not owner', async function () {
+            await shouldFail.reverting(this.token.updateTokenBaseURI('fc.xyz', {from: tokenOwnerOne}));
+        });
+
+        it('should reset if owner', async function () {
+            const {logs} = await this.token.updateTokenBaseURI('http://hello', {from: creator});
+            expectEvent.inLogs(
+                logs,
+                `TokenBaseURIChanged`,
+                {_new: 'http://hello'}
+            );
+            (await this.token.tokenBaseURI()).should.be.equal('http://hello');
+        });
+    });
+
+    context('ensure only owner can base IPFS URI', function () {
+        it('should revert if empty', async function () {
+            await shouldFail.reverting(this.token.updateTokenBaseIpfsURI('', {from: creator}));
+        });
+
+        it('should revert if not owner', async function () {
+            await shouldFail.reverting(this.token.updateTokenBaseIpfsURI('fc.xyz', {from: tokenOwnerOne}));
+        });
+
+        it('should reset if owner', async function () {
+            const {logs} = await this.token.updateTokenBaseIpfsURI('http://hello', {from: creator});
+            expectEvent.inLogs(
+                logs,
+                `TokenBaseIPFSURIChanged`,
+                {_new: 'http://hello'}
+            );
+            (await this.token.tokenBaseIpfsURI()).should.be.equal('http://hello');
+        });
+    });
+
+    context('static and dynamic IPFS images', function () {
+
+        const staticIpfsHash = "123-abc-456-def";
+        let firstTokenId;
+
+        beforeEach(async function () {
+            await this.token.purchaseTo(tokenOwnerOne, {from: tokenOwnerOne});
+
+            const tokens = await this.token.tokensOfOwner(tokenOwnerOne);
+            tokens.length.should.be.equal(1);
+
+            firstTokenId = tokens[0].toString();
+        });
+
+        context('if whitelisted', function () {
+            it('can set static IPFS hash', async function () {
+                const {logs} = await this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: creator});
+                expectEvent.inLogs(
+                    logs,
+                    `StaticIpfsTokenURISet`,
+                    {
+                        _tokenId: firstTokenId,
+                        _ipfsHash: staticIpfsHash
+                    }
+                );
+            });
+
+            it('can remove static IPFS hash', async function () {
+                await this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: creator});
+                const {logs} = await this.token.clearIpfsImageUri(firstTokenId, {from: creator});
+                expectEvent.inLogs(
+                    logs,
+                    `StaticIpfsTokenURICleared`,
+                    {
+                        _tokenId: firstTokenId
+                    }
+                );
+            });
+        });
+
+        context('if not whitelisted', function () {
+            it('cannot set static IPFS hash', async function () {
+                await shouldFail.reverting(this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: tokenOwnerOne}));
+            });
+
+            it('cannot remove static IPFS hash', async function () {
+                await this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: creator});
+                await shouldFail.reverting(this.token.clearIpfsImageUri(firstTokenId, {from: tokenOwnerOne}));
+            });
+        });
+
+        context('when calling tokenURI()', function () {
+
+            it('will use static IPFS hash if found', async function () {
+                await this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: creator});
+                const tokenURI = await this.token.tokenURI(firstTokenId);
+                tokenURI.should.be.equal("https://ipfs.infura.io/ipfs/123-abc-456-def");
+            });
+
+            it('will go back to using dynamic  URI if static set and then cleared', async function () {
+                await this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: creator});
+                const newTokenURI = await this.token.tokenURI(firstTokenId);
+                newTokenURI.should.be.equal("https://ipfs.infura.io/ipfs/123-abc-456-def");
+
+                await this.token.clearIpfsImageUri(firstTokenId, {from: creator});
+                const resetTokenURI = await this.token.tokenURI(firstTokenId);
+                resetTokenURI.should.be.equal(`https://artblocks.com/${firstTokenId}`);
+            });
         });
 
     });
