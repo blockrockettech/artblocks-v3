@@ -275,6 +275,18 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
         });
     });
 
+    describe('ensure only owner can ApplicationChecksum', function () {
+        it('should revert if not owner', async function () {
+            await shouldFail.reverting(this.token.updateApplicationChecksum(web3.utils.fromAscii('file-checksum'), {from: tokenOwnerOne}));
+        });
+
+        it('can be set by artist', async function () {
+            await this.token.updateApplicationChecksum(web3.utils.fromAscii('file-checksum'), {from: creator});
+            const applicationChecksum = await this.token.applicationChecksum();
+            web3.utils.toAscii(applicationChecksum).replace(/\0/g, '').should.be.equal('file-checksum');
+        });
+    });
+
     async function getGasCosts (receipt) {
         let tx = await web3.eth.getTransaction(receipt.tx);
         let gasPrice = new BN(tx.gasPrice);

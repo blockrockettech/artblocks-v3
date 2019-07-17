@@ -32,6 +32,8 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     uint256 public maxInvocations = 1000000;
     uint256 public invocations = 0;
 
+    bytes32 public applicationChecksum;
+
     mapping(bytes32 => uint256) public hashToTokenId;
     mapping(uint256 => bytes32) public tokenIdToHash;
 
@@ -136,6 +138,11 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
 
     function updateMaxInvocations(uint256 _maxInvocations) public onlyWhitelisted returns (bool) {
         maxInvocations = _maxInvocations;
+        return true;
+    }
+
+    function updateApplicationChecksum(bytes32 _applicationChecksum) public onlyWhitelisted returns (bool) {
+        applicationChecksum = _applicationChecksum;
         return true;
     }
 
