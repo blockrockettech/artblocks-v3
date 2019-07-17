@@ -48,6 +48,8 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
                 to: tokenOwnerOne,
             });
 
+            (await this.token.invocations()).should.be.bignumber.equal('1');
+
             const tokens = await this.token.tokensOfOwner(tokenOwnerOne);
             tokens.length.should.be.equal(1);
 
@@ -56,6 +58,14 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
 
             const hash = await this.token.tokenIdToHash(tokenId);
             assert.isNotNull(hash);
+        });
+
+        it('reverts once max invocations reached', async function () {
+            await this.token.updateMaxInvocations(new BN(2), {from: creator});
+
+            await this.token.purchaseTo(tokenOwnerOne, {from: creator, value: price});
+            await this.token.purchaseTo(tokenOwnerOne, {from: creator, value: price});
+            await shouldFail.reverting(this.token.purchaseTo(tokenOwnerOne, {from: creator, value: price}));
         });
 
         describe('splitFunds', function () {
@@ -127,9 +137,10 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
                 purchaserWalletAfter.should.be.bignumber.equal(purchaserWallet.sub(gasCosts).sub(overpay));
             });
         });
+
     });
 
-    context('ensure only owner can set base URI', function () {
+    describe('ensure only owner can set base URI', function () {
         it('should revert if not owner', async function () {
             await shouldFail.reverting(this.token.updateTokenBaseURI('fc.xyz', {from: tokenOwnerOne}));
         });
@@ -140,7 +151,7 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
         });
     });
 
-    context('ensure only owner can base IPFS URI', function () {
+    describe('ensure only owner can base IPFS URI', function () {
         it('should revert if not owner', async function () {
             await shouldFail.reverting(this.token.updateTokenBaseIpfsURI('fc.xyz', {from: tokenOwnerOne}));
         });
@@ -151,7 +162,7 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
         });
     });
 
-    context('static and dynamic IPFS images', function () {
+    describe('static and dynamic IPFS images', function () {
 
         const staticIpfsHash = '123-abc-456-def';
         let firstTokenId;
@@ -165,7 +176,7 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
             firstTokenId = tokens[0].toString();
         });
 
-        context('if whitelisted', function () {
+        describe('if whitelisted', function () {
             it('can set static IPFS hash', async function () {
                 await this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: creator});
                 (await this.token.tokenURI(firstTokenId)).should.be.equal('https://ipfs.infura.io/ipfs/123-abc-456-def');
@@ -178,7 +189,7 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
             });
         });
 
-        context('if not whitelisted', function () {
+        describe('if not whitelisted', function () {
             it('cannot set static IPFS hash', async function () {
                 await shouldFail.reverting(this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: tokenOwnerOne}));
             });
@@ -189,7 +200,7 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
             });
         });
 
-        context('when calling tokenURI()', function () {
+        describe('when calling tokenURI()', function () {
 
             it('will use static IPFS hash if found', async function () {
                 await this.token.overrideDynamicImageWithIpfsLink(firstTokenId, staticIpfsHash, {from: creator});
@@ -209,23 +220,7 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
         });
     });
 
-
-    // function updateFoundationAddress(address payable _foundationAddress) public onlyWhitelisted returns (bool) {
-    //     foundationAddress = _foundationAddress;
-    //     return true;
-    // }
-    //
-    // function updateFoundationPercentage(uint256 _foundationPercentage) public onlyWhitelisted returns (bool) {
-    //     foundationPercentage = _foundationPercentage;
-    //     return true;
-    // }
-    //
-    // function updateMaxInvocations(uint256 _maxInvocations) public onlyWhitelisted returns (bool) {
-    //     maxInvocations = _maxInvocations;
-    //     return true;
-    // }
-
-    context('ensure only owner can ArtistAddress', function () {
+    describe('ensure only owner can ArtistAddress', function () {
         it('should revert if not owner', async function () {
             await shouldFail.reverting(this.token.updateArtistAddress(tokenOwnerOne, {from: tokenOwnerOne}));
         });
@@ -236,7 +231,7 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
         });
     });
 
-    context('ensure only owner can PricePerTokenInWei', function () {
+    describe('ensure only owner can PricePerTokenInWei', function () {
         it('should revert if not owner', async function () {
             await shouldFail.reverting(this.token.updatePricePerTokenInWei(new BN(2), {from: tokenOwnerOne}));
         });
@@ -247,7 +242,7 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
         });
     });
 
-    context('ensure only owner can FoundationAddress', function () {
+    describe('ensure only owner can FoundationAddress', function () {
         it('should revert if not owner', async function () {
             await shouldFail.reverting(this.token.updateFoundationAddress(tokenOwnerOne, {from: tokenOwnerOne}));
         });
@@ -255,6 +250,28 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
         it('should update if owner', async function () {
             await this.token.updateFoundationAddress(tokenOwnerOne, {from: creator});
             (await this.token.foundationAddress()).should.be.equal(tokenOwnerOne);
+        });
+    });
+
+    describe('ensure only owner can FoundationPercentage', function () {
+        it('should revert if not owner', async function () {
+            await shouldFail.reverting(this.token.updateFoundationPercentage(new BN(6), {from: tokenOwnerOne}));
+        });
+
+        it('should update if owner', async function () {
+            await this.token.updateFoundationPercentage(new BN(6), {from: creator});
+            (await this.token.foundationPercentage()).should.be.bignumber.equal(new BN(6));
+        });
+    });
+
+    describe('ensure only owner can MaxInvocations', function () {
+        it('should revert if not owner', async function () {
+            await shouldFail.reverting(this.token.updateMaxInvocations(new BN(100), {from: tokenOwnerOne}));
+        });
+
+        it('should update if owner', async function () {
+            await this.token.updateMaxInvocations(new BN(100), {from: creator});
+            (await this.token.maxInvocations()).should.be.bignumber.equal(new BN(100));
         });
     });
 

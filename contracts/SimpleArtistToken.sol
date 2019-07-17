@@ -30,6 +30,7 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     uint256 public foundationPercentage = 5; // 5% to foundation
 
     uint256 public maxInvocations = 1000000;
+    uint256 public invocations = 0;
 
     mapping(bytes32 => uint256) public hashToTokenId;
     mapping(uint256 => bytes32) public tokenIdToHash;
@@ -37,7 +38,7 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     mapping(uint256 => string) public staticIpfsImageLink;
 
 
-    // checksum
+    // FIXME checksum
 
 
     ///////////////
@@ -71,6 +72,7 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
 
     function purchaseTo(address _to) public payable returns (uint256 _tokenId) {
         require(msg.value >= pricePerTokenInWei, "Must send at least pricePerTokenInWei");
+        require(invocations.add(1) <= maxInvocations, "Must not exceed max invocations");
 
         uint256 number = block.number;
         bytes32 hash = keccak256(abi.encodePacked(number));
@@ -86,6 +88,8 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
         tokenIdToHash[number] = hash;
 
         _splitFunds();
+
+        invocations = invocations.add(1);
 
         return number;
     }
