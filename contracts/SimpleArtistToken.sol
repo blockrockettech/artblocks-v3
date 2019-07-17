@@ -40,17 +40,18 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     string public tokenBaseURI;
     string public tokenBaseIpfsURI = "https://ipfs.infura.io/ipfs/";
 
+    address payable public artistAddress;
+    uint256 public pricePerTokenInWei;
+
+    address payable public foundationAddress = 0xf43aE50C468c3D3Fa0C3dC3454E797317EF53078;
+    uint256 public foundationPercentage = 5; // 5% to foundation
+
     mapping(bytes32 => uint256) public hashToTokenId;
     mapping(uint256 => bytes32) public tokenIdToHash;
 
     mapping(uint256 => string) public staticIpfsImageLink;
 
-    address payable public artistAddress;
 
-    uint256 public pricePerTokenInWei;
-
-    address payable public foundationAddress = 0xf43aE50C468c3D3Fa0C3dC3454E797317EF53078;
-    uint256 public foundationPercentage = 5; // 5% to foundation
 
     // checksum
 
@@ -89,7 +90,6 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     function purchaseTo(address _to) public payable returns (uint256 _tokenId) {
 
         uint256 number = block.number;
-        // get last mined block
         bytes32 hash = keccak256(abi.encodePacked(number));
 
         while (hashToTokenId[hash] != 0) {
@@ -120,22 +120,7 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
         }
     }
 
-    //    /*
-    //     * Function for burning tokens if you are the owner
-    //     */
-    //    function burn(uint256 _tokenId) public {
-    //        require(_isApprovedOrOwner(msg.sender, _tokenId), "Caller is not owner nor approved");
-    //        _burn(_tokenId);
-    //        delete _tokenURIs[_tokenId];
-    //    }
-    //
-    //    /*
-    //     * Admin only function for burning tokens
-    //     */
-    //    function adminBurn(uint256 _tokenId) onlyWhitelisted public {
-    //        _burn(_tokenId);
-    //        delete _tokenURIs[_tokenId];
-    //    }
+    //BURN?
 
     //////////////////////////
     // Management functions //

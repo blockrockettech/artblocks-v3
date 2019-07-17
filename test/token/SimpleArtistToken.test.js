@@ -1,47 +1,62 @@
-const {BN, constants, expectEvent, shouldFail, ether, balance} = require('openzeppelin-test-helpers');
+const {BN, constants, expectEvent, shouldFail, ether, balance, expect} = require('openzeppelin-test-helpers');
 const {ZERO_ADDRESS} = constants;
+
+const { assert } = require('chai')
 
 const SimpleArtistToken = artifacts.require('SimpleArtistToken.sol');
 
 contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, tokenOwnerTwo, artistAccountOne, artistAccountTwo, artistsAccount, ...accounts]) {
 
     const tokenURI = '123abc456def987';
-    const editionPrice = ether('1');
     const tokenBaseUri = 'https://artblocks.com/';
 
     beforeEach(async function () {
         this.token = await SimpleArtistToken.new(artistsAccount, new BN(1), tokenBaseUri, {from: creator});
     });
 
-    describe('name() and symbol()', async function () {
+    describe('constructor setup', async function () {
         it('name()', async function () {
             const name = await this.token.name();
             name.should.be.equal('SimpleArtistToken');
         });
+
         it('symbol()', async function () {
             const symbol = await this.token.symbol();
             symbol.should.be.equal('SAT');
         });
+
+        it('artistAddress()', async function () {
+            const artistAddress = await this.token.artistAddress();
+            artistAddress.should.be.equal(artistsAccount);
+        });
+
+        it('pricePerTokenInWei()', async function () {
+            const pricePerTokenInWei = await this.token.pricePerTokenInWei();
+            pricePerTokenInWei.should.be.bignumber.equal('1');
+        });
     });
 
     describe('purchaseTo()', async function () {
-        beforeEach(async function () {
-            await this.token.purchaseTo(tokenOwnerOne, {from: creator});
-            await this.token.purchaseTo(tokenOwnerOne, {from: creator});
-        });
 
-        it('should have token ID and blockhash', async function () {
+        it('should have token ID and hash', async function () {
+
+            const {logs} = await this.token.purchaseTo(tokenOwnerOne, {from: creator});
+            expectEvent.inLogs(logs, 'Transfer', {
+                from: ZERO_ADDRESS,
+                to: tokenOwnerOne,
+            });
 
             const tokens = await this.token.tokensOfOwner(tokenOwnerOne);
-            tokens.length.should.be.equal(2);
+            tokens.length.should.be.equal(1);
 
-            console.log(tokens[0].toString());
-            console.log(await this.token.tokenIdToHash(tokens[0].toString()));
+            const tokenId = tokens[0].toString();
+            assert.isNotNull(tokenId);
 
-            console.log(await this.token.tokenIdToHash(tokens[1].toString()));
-            console.log(tokens[1].toString());
+            const hash = await this.token.tokenIdToHash(tokenId);
+            assert.isNotNull(hash);
         });
 
+        // split funds check
     });
 
     context('ensure only owner can set base URI', function () {
@@ -156,56 +171,6 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
 
     });
 
-    //
-    // describe('adminBurn()', async function () {
-    //
-    //     const editionId = new BN('1000');
-    //     const buyer = tokenOwnerOne;
-    //
-    //     beforeEach(async function () {
-    //         await this.token.createEdition(
-    //             new BN('1'),
-    //             editionPrice,
-    //             new BN('50'),
-    //             artistAccountOne,
-    //             tokenURI,
-    //             {from: creator}
-    //         );
-    //     });
-    //
-    //     it('can burn token as admin when not owner', async function () {
-    //         const tokenId = new BN('1000');
-    //
-    //         const {logs} = await this.token.purchaseTo(buyer, editionId, {from: buyer, value: ether('1')});
-    //         expectEvent.inLogs(logs, 'Transfer', {
-    //             from: ZERO_ADDRESS,
-    //             to: buyer,
-    //             tokenId: tokenId
-    //         });
-    //
-    //         const tokenOwner = await this.token.ownerOf(tokenId);
-    //         tokenOwner.should.be.equal(buyer);
-    //
-    //         let balanceOf = await this.token.balanceOf(buyer);
-    //         balanceOf.should.be.bignumber.equal('1');
-    //
-    //         let tokensOfOwner = await this.token.tokensOfOwner(buyer);
-    //         tokensOfOwner.map(val => val.toString()).should.be.deep.equal([tokenId.toString()]);
-    //
-    //         await this.token.adminBurn(tokenId, {from: creator});
-    //
-    //         await shouldFail.reverting(
-    //             this.token.ownerOf(tokenId)
-    //         );
-    //
-    //         balanceOf = await this.token.balanceOf(buyer);
-    //         balanceOf.should.be.bignumber.equal('0');
-    //
-    //         tokensOfOwner = await this.token.tokensOfOwner(buyer);
-    //         tokensOfOwner.should.be.deep.equal([]);
-    //     });
-    //
-    // });
 
     async function getGasCosts (receipt) {
         let tx = await web3.eth.getTransaction(receipt.tx);
