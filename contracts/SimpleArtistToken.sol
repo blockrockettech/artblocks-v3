@@ -40,9 +40,6 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     mapping(uint256 => string) public staticIpfsImageLink;
 
 
-    // FIXME checksum
-
-
     ///////////////
     // Modifiers //
     ///////////////
