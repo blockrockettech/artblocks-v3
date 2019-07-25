@@ -11,6 +11,8 @@ import "./CustomERC721Metadata.sol";
 contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     using SafeMath for uint256;
 
+    uint256 constant internal MAX_UINT256 = ~uint256(0);
+
     ////////////
     // Events //
     ////////////
@@ -26,10 +28,10 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     address payable public artistAddress;
     uint256 public pricePerTokenInWei;
 
-    address payable public foundationAddress = 0xf43aE50C468c3D3Fa0C3dC3454E797317EF53078;
-    uint256 public foundationPercentage = 5; // 5% to foundation
+    address payable public artblocksAddress;
+    uint256 public artblocksPercentage;
 
-    uint256 public maxInvocations = 1000000;
+    uint256 public maxInvocations = MAX_UINT256;
     uint256 public invocations = 0;
 
     bytes32 public applicationChecksum;
@@ -53,17 +55,25 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     // Constructor //
     /////////////////
 
-    constructor(address payable _artistAddress, uint256 _pricePerTokenInWei, string memory _tokenBaseURI) CustomERC721Metadata("SimpleArtistToken", "SAT") public {
+    constructor(address payable _artistAddress, uint256 _pricePerTokenInWei, string memory _tokenBaseURI, uint256 _artblocksPercentage) CustomERC721Metadata("SimpleArtistToken", "SAT") public {
         super.addWhitelisted(msg.sender);
 
         artistAddress = _artistAddress;
         pricePerTokenInWei = _pricePerTokenInWei;
         tokenBaseURI = _tokenBaseURI;
+
+        artblocksAddress = msg.sender;
+        artblocksPercentage = _artblocksPercentage;
     }
 
     //////////////////////////////
     // Token Creation Functions //
     //////////////////////////////
+
+    // allows payment direct to contract
+    function() external payable {
+        purchaseTo(msg.sender);
+    }
 
     function purchase() public payable returns (uint256 _tokenId) {
         return purchaseTo(msg.sender);
@@ -97,16 +107,16 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
         if (msg.value > 0) {
 
             // work out the amount to split and send it
-            uint256 foundationAmount = msg.value.div(100).mul(foundationPercentage);
-            foundationAddress.transfer(foundationAmount);
+            uint256 foundationAmount = msg.value.div(100).mul(artblocksPercentage);
+            if (foundationAmount > 0) {
+                artblocksAddress.transfer(foundationAmount);
+            }
 
             // send remaining amount to artist
             uint256 remaining = msg.value.sub(foundationAmount);
             artistAddress.transfer(remaining);
         }
     }
-
-    //BURN?
 
     //////////////////////////
     // Management functions //
@@ -123,13 +133,13 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
         return true;
     }
 
-    function updateFoundationAddress(address payable _foundationAddress) public onlyWhitelisted returns (bool) {
-        foundationAddress = _foundationAddress;
+    function updateArtblocksAddress(address payable _artblocksAddress) public onlyWhitelisted returns (bool) {
+        artblocksAddress = _artblocksAddress;
         return true;
     }
 
-    function updateFoundationPercentage(uint256 _foundationPercentage) public onlyWhitelisted returns (bool) {
-        foundationPercentage = _foundationPercentage;
+    function updateArtblocksPercentage(uint256 _artblocksPercentage) public onlyWhitelisted returns (bool) {
+        artblocksPercentage = _artblocksPercentage;
         return true;
     }
 

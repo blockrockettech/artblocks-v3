@@ -12,7 +12,7 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
     let price;
 
     beforeEach(async function () {
-        this.token = await SimpleArtistToken.new(artistsAccount, new BN(100), tokenBaseUri, {from: creator});
+        this.token = await SimpleArtistToken.new(artistsAccount, new BN(100), tokenBaseUri, new BN(5), {from: creator});
         price = await this.token.pricePerTokenInWei();
     });
 
@@ -71,11 +71,11 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
         describe('splitFunds', function () {
 
             it('all parties get the correct amounts', async function () {
-                const foundationAddress = await this.token.foundationAddress();
-                const foundationPercentage = await this.token.foundationPercentage();
+                const artblocksAddress = await this.token.artblocksAddress();
+                const artblocksPercentage = await this.token.artblocksPercentage();
                 const artistAddress = await this.token.artistAddress();
 
-                const foundationAddressWallet = new BN((await web3.eth.getBalance(foundationAddress)));
+                const artblocksAddressWallet = new BN((await web3.eth.getBalance(artblocksAddress)));
                 const artistAddressWallet = new BN((await web3.eth.getBalance(artistAddress)));
                 const purchaserWallet = new BN((await web3.eth.getBalance(tokenOwnerOne)));
 
@@ -85,18 +85,53 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
                 });
                 const gasCosts = await getGasCosts(receipt);
 
-                const foundationAddressWalletAfter = new BN((await web3.eth.getBalance(foundationAddress)));
+                const artblocksAddressWalletAfter = new BN((await web3.eth.getBalance(artblocksAddress)));
                 const artistAddressWalletAfter = new BN((await web3.eth.getBalance(artistAddress)));
                 const purchaserWalletAfter = new BN((await web3.eth.getBalance(tokenOwnerOne)));
 
-                const foundationSplit = price.div(new BN(100)).mul(foundationPercentage);
+                const foundationSplit = price.div(new BN(100)).mul(artblocksPercentage);
                 const artistSplit = price.sub(foundationSplit);
 
                 // 95% of value sent
                 artistAddressWalletAfter.should.be.bignumber.equal(artistAddressWallet.add(artistSplit));
 
                 // 5% of current
-                foundationAddressWalletAfter.should.be.bignumber.equal(foundationAddressWallet.add(foundationSplit));
+                artblocksAddressWalletAfter.should.be.bignumber.equal(artblocksAddressWallet.add(foundationSplit));
+
+                // check refund is applied and only pay for current price, not the overpay
+                purchaserWalletAfter.should.be.bignumber.equal(purchaserWallet.sub(gasCosts).sub(price));
+            });
+
+            it('all parties get the correct amounts when artblock percentage is zero (therefore gets nothing)', async function () {
+
+                await this.token.updateArtblocksPercentage(new BN(0), {from: creator});
+                (await this.token.artblocksPercentage()).should.be.bignumber.equal(new BN(0));
+
+                const artblocksAddress = await this.token.artblocksAddress();
+                const artistAddress = await this.token.artistAddress();
+
+                const artblocksAddressWallet = new BN((await web3.eth.getBalance(artblocksAddress)));
+                const artistAddressWallet = new BN((await web3.eth.getBalance(artistAddress)));
+                const purchaserWallet = new BN((await web3.eth.getBalance(tokenOwnerOne)));
+
+                const receipt = await this.token.purchaseTo(tokenOwnerOne, {
+                    from: tokenOwnerOne,
+                    value: price
+                });
+                const gasCosts = await getGasCosts(receipt);
+
+                const artblocksAddressWalletAfter = new BN((await web3.eth.getBalance(artblocksAddress)));
+                const artistAddressWalletAfter = new BN((await web3.eth.getBalance(artistAddress)));
+                const purchaserWalletAfter = new BN((await web3.eth.getBalance(tokenOwnerOne)));
+
+                const foundationSplit = new BN(0);
+                const artistSplit = price.sub(foundationSplit);
+
+                // 100% of value sent
+                artistAddressWalletAfter.should.be.bignumber.equal(artistAddressWallet.add(artistSplit));
+
+                // 0% of current
+                artblocksAddressWalletAfter.should.be.bignumber.equal(artblocksAddressWallet);
 
                 // check refund is applied and only pay for current price, not the overpay
                 purchaserWalletAfter.should.be.bignumber.equal(purchaserWallet.sub(gasCosts).sub(price));
@@ -106,11 +141,11 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
 
                 const overpay = price.add(new BN(100));
 
-                const foundationAddress = await this.token.foundationAddress();
-                const foundationPercentage = await this.token.foundationPercentage();
+                const artblocksAddress = await this.token.artblocksAddress();
+                const artblocksPercentage = await this.token.artblocksPercentage();
                 const artistAddress = await this.token.artistAddress();
 
-                const foundationAddressWallet = new BN((await web3.eth.getBalance(foundationAddress)));
+                const artblocksAddressWallet = new BN((await web3.eth.getBalance(artblocksAddress)));
                 const artistAddressWallet = new BN((await web3.eth.getBalance(artistAddress)));
                 const purchaserWallet = new BN((await web3.eth.getBalance(tokenOwnerOne)));
 
@@ -120,21 +155,75 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
                 });
                 const gasCosts = await getGasCosts(receipt);
 
-                const foundationAddressWalletAfter = new BN((await web3.eth.getBalance(foundationAddress)));
+                const artblocksAddressWalletAfter = new BN((await web3.eth.getBalance(artblocksAddress)));
                 const artistAddressWalletAfter = new BN((await web3.eth.getBalance(artistAddress)));
                 const purchaserWalletAfter = new BN((await web3.eth.getBalance(tokenOwnerOne)));
 
-                const foundationSplit = overpay.div(new BN(100)).mul(foundationPercentage);
+                const foundationSplit = overpay.div(new BN(100)).mul(artblocksPercentage);
                 const artistSplit = overpay.sub(foundationSplit);
 
                 // 95% of value sent
                 artistAddressWalletAfter.should.be.bignumber.equal(artistAddressWallet.add(artistSplit));
 
                 // 5% of current
-                foundationAddressWalletAfter.should.be.bignumber.equal(foundationAddressWallet.add(foundationSplit));
+                artblocksAddressWalletAfter.should.be.bignumber.equal(artblocksAddressWallet.add(foundationSplit));
 
                 // check refund is applied and only pay for current price, not the overpay
                 purchaserWalletAfter.should.be.bignumber.equal(purchaserWallet.sub(gasCosts).sub(overpay));
+            });
+        });
+
+    });
+
+
+    describe('default payable function()', async function () {
+
+        it('should have token ID and hash', async function () {
+            (await this.token.invocations()).should.be.bignumber.equal('0');
+
+            await this.token.send(price, {from: tokenOwnerOne});
+
+            (await this.token.invocations()).should.be.bignumber.equal('1');
+
+            const tokens = await this.token.tokensOfOwner(tokenOwnerOne);
+            tokens.length.should.be.equal(1);
+
+            const tokenId = tokens[0].toString();
+            assert.isNotNull(tokenId);
+
+            const hash = await this.token.tokenIdToHash(tokenId);
+            assert.isNotNull(hash);
+        });
+
+        describe('splitFunds (on default payable)', function () {
+
+            it('all parties get the correct amounts', async function () {
+                const artblocksAddress = await this.token.artblocksAddress();
+                const artblocksPercentage = await this.token.artblocksPercentage();
+                const artistAddress = await this.token.artistAddress();
+
+                const artblocksAddressWallet = new BN((await web3.eth.getBalance(artblocksAddress)));
+                const artistAddressWallet = new BN((await web3.eth.getBalance(artistAddress)));
+                const purchaserWallet = new BN((await web3.eth.getBalance(tokenOwnerOne)));
+
+                const receipt = await this.token.send(price, {from: tokenOwnerOne});
+                const gasCosts = await getGasCosts(receipt);
+
+                const artblocksAddressWalletAfter = new BN((await web3.eth.getBalance(artblocksAddress)));
+                const artistAddressWalletAfter = new BN((await web3.eth.getBalance(artistAddress)));
+                const purchaserWalletAfter = new BN((await web3.eth.getBalance(tokenOwnerOne)));
+
+                const foundationSplit = price.div(new BN(100)).mul(artblocksPercentage);
+                const artistSplit = price.sub(foundationSplit);
+
+                // 95% of value sent
+                artistAddressWalletAfter.should.be.bignumber.equal(artistAddressWallet.add(artistSplit));
+
+                // 5% of current
+                artblocksAddressWalletAfter.should.be.bignumber.equal(artblocksAddressWallet.add(foundationSplit));
+
+                // check refund is applied and only pay for current price, not the overpay
+                purchaserWalletAfter.should.be.bignumber.equal(purchaserWallet.sub(gasCosts).sub(price));
             });
         });
 
@@ -242,25 +331,25 @@ contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, t
         });
     });
 
-    describe('ensure only owner can FoundationAddress', function () {
+    describe('ensure only owner can ArtblocksAddress', function () {
         it('should revert if not owner', async function () {
-            await shouldFail.reverting(this.token.updateFoundationAddress(tokenOwnerOne, {from: tokenOwnerOne}));
+            await shouldFail.reverting(this.token.updateArtblocksAddress(tokenOwnerOne, {from: tokenOwnerOne}));
         });
 
         it('should update if owner', async function () {
-            await this.token.updateFoundationAddress(tokenOwnerOne, {from: creator});
-            (await this.token.foundationAddress()).should.be.equal(tokenOwnerOne);
+            await this.token.updateArtblocksAddress(tokenOwnerOne, {from: creator});
+            (await this.token.artblocksAddress()).should.be.equal(tokenOwnerOne);
         });
     });
 
-    describe('ensure only owner can FoundationPercentage', function () {
+    describe('ensure only owner can ArtblocksPercentage', function () {
         it('should revert if not owner', async function () {
-            await shouldFail.reverting(this.token.updateFoundationPercentage(new BN(6), {from: tokenOwnerOne}));
+            await shouldFail.reverting(this.token.updateArtblocksPercentage(new BN(6), {from: tokenOwnerOne}));
         });
 
         it('should update if owner', async function () {
-            await this.token.updateFoundationPercentage(new BN(6), {from: creator});
-            (await this.token.foundationPercentage()).should.be.bignumber.equal(new BN(6));
+            await this.token.updateArtblocksPercentage(new BN(6), {from: creator});
+            (await this.token.artblocksPercentage()).should.be.bignumber.equal(new BN(6));
         });
     });
 
