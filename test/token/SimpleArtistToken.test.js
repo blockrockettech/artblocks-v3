@@ -5,7 +5,7 @@ const {assert} = require('chai');
 
 const SimpleArtistToken = artifacts.require('SimpleArtistToken.sol');
 
-contract.only('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, tokenOwnerTwo, artistAccountOne, artistAccountTwo, artistsAccount, ...accounts]) {
+contract('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, tokenOwnerTwo, artistAccountOne, artistAccountTwo, artistsAccount, ...accounts]) {
 
     const tokenURI = '123abc456def987';
     const tokenBaseUri = 'https://artblocks.com/';

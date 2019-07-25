@@ -11,7 +11,7 @@ contract('ERC721', function ([_, creator, tokenOwner, other, artistAccount, ...a
     let price;
 
     beforeEach(async function () {
-        this.token = await SimpleArtistToken.new(other, new BN(1), tokenBaseUri, {from: creator});
+        this.token = await SimpleArtistToken.new(other, new BN(1), tokenBaseUri, new BN(5), {from: creator});
         price = await this.token.pricePerTokenInWei();
     });
 
