@@ -13,11 +13,6 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
 
     uint256 constant internal MAX_UINT256 = ~uint256(0);
 
-    ////////////
-    // Events //
-    ////////////
-
-
     ///////////////
     // Variables //
     ///////////////
@@ -38,6 +33,7 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
 
     mapping(bytes32 => uint256) public hashToTokenId;
     mapping(uint256 => bytes32) public tokenIdToHash;
+    mapping(uint256 => string) public tokenIdToNickname;
 
     mapping(uint256 => string) public staticIpfsImageLink;
 
@@ -83,6 +79,35 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
         require(msg.value >= pricePerTokenInWei, "Must send at least pricePerTokenInWei");
         require(invocations.add(1) <= maxInvocations, "Must not exceed max invocations");
 
+        uint256 tokenId = _mintToken(_to);
+
+        _splitFunds();
+
+        invocations = invocations.add(1);
+
+        return tokenId;
+    }
+
+    function purchaseWithNickname(string memory _nickname) public payable returns (uint256 _tokenId) {
+        return purchaseWithNicknameTo(msg.sender, _nickname);
+    }
+
+    function purchaseWithNicknameTo(address _to, string memory _nickname) public payable returns (uint256 _tokenId) {
+        require(msg.value >= pricePerTokenInWei, "Must send at least pricePerTokenInWei");
+        require(invocations.add(1) <= maxInvocations, "Must not exceed max invocations");
+
+        uint256 tokenId = _mintToken(_to);
+
+        tokenIdToNickname[tokenId] = _nickname;
+
+        _splitFunds();
+
+        invocations = invocations.add(1);
+
+        return tokenId;
+    }
+
+    function _mintToken(address _to) internal returns (uint256 _tokenId) {
         uint256 number = block.number;
         bytes32 hash = keccak256(abi.encodePacked(number));
 
@@ -95,10 +120,6 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
 
         hashToTokenId[hash] = number;
         tokenIdToHash[number] = hash;
-
-        _splitFunds();
-
-        invocations = invocations.add(1);
 
         return number;
     }

@@ -175,6 +175,35 @@ contract('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, tokenO
 
     });
 
+    describe('purchaseWithNicknameTo()', async function () {
+
+        it('should have token ID, hash and nickname', async function () {
+            const {logs} = await this.token.purchaseWithNicknameTo(tokenOwnerOne, 'Jimmy', {
+                from: creator,
+                value: price
+            });
+            expectEvent.inLogs(logs, 'Transfer', {
+                from: ZERO_ADDRESS,
+                to: tokenOwnerOne,
+            });
+
+            (await this.token.invocations()).should.be.bignumber.equal('1');
+
+            const tokens = await this.token.tokensOfOwner(tokenOwnerOne);
+            tokens.length.should.be.equal(1);
+
+            const tokenId = tokens[0].toString();
+            assert.isNotNull(tokenId);
+
+            const hash = await this.token.tokenIdToHash(tokenId);
+            assert.isNotNull(hash);
+
+            const nickname = await this.token.tokenIdToNickname(tokenId);
+            nickname.should.be.equal('Jimmy');
+        });
+
+    });
+
 
     describe('default payable function()', async function () {
 
@@ -376,7 +405,7 @@ contract('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, tokenO
         });
     });
 
-    async function getGasCosts (receipt) {
+    async function getGasCosts(receipt) {
         let tx = await web3.eth.getTransaction(receipt.tx);
         let gasPrice = new BN(tx.gasPrice);
         return gasPrice.mul(new BN(receipt.receipt.gasUsed));
