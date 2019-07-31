@@ -84,8 +84,6 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
 
         _splitFunds();
 
-        invocations = invocations.add(1);
-
         return tokenId;
     }
 
@@ -103,26 +101,20 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
 
         _splitFunds();
 
-        invocations = invocations.add(1);
-
         return tokenId;
     }
 
     function _mintToken(address _to) internal returns (uint256 _tokenId) {
-        uint256 number = block.number;
-        bytes32 hash = keccak256(abi.encodePacked(number));
 
-        while (hashToTokenId[hash] != 0) {
-            number = number.add(1);
-            hash = keccak256(abi.encodePacked(number));
-        }
+        invocations = invocations.add(1); // next token ID
+        bytes32 hash = keccak256(abi.encodePacked(invocations, block.number, msg.sender));
 
-        _mint(_to, number);
+        _mint(_to, invocations);
 
-        hashToTokenId[hash] = number;
-        tokenIdToHash[number] = hash;
+        hashToTokenId[hash] = invocations;
+        tokenIdToHash[invocations] = hash;
 
-        return number;
+        return invocations;
     }
 
     function _splitFunds() internal {
