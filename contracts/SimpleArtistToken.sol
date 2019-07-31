@@ -24,7 +24,7 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     uint256 public pricePerTokenInWei;
 
     address payable public artblocksAddress;
-    uint256 public artblocksPercentage;
+    uint256 public artblocksPercentage = 5;
 
     uint256 public maxInvocations = MAX_UINT256;
     uint256 public invocations = 0;
@@ -51,15 +51,16 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     // Constructor //
     /////////////////
 
-    constructor(address payable _artistAddress, uint256 _pricePerTokenInWei, string memory _tokenBaseURI, uint256 _artblocksPercentage) CustomERC721Metadata("SimpleArtistToken", "SAT") public {
+    constructor(address payable _artistAddress, uint256 _pricePerTokenInWei, string memory _tokenBaseURI, string memory _tokenName, string memory _tokenSymbol) CustomERC721Metadata(_tokenName, _tokenSymbol) public {
         super.addWhitelisted(msg.sender);
 
         artistAddress = _artistAddress;
+
         pricePerTokenInWei = _pricePerTokenInWei;
+
         tokenBaseURI = _tokenBaseURI;
 
         artblocksAddress = msg.sender;
-        artblocksPercentage = _artblocksPercentage;
     }
 
     //////////////////////////////
@@ -127,14 +128,21 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     function _splitFunds() internal {
         if (msg.value > 0) {
 
+            uint256 refund = msg.value.sub(pricePerTokenInWei);
+
+            // overpaid...
+            if (refund > 0) {
+                msg.sender.transfer(refund);
+            }
+
             // work out the amount to split and send it
-            uint256 foundationAmount = msg.value.div(100).mul(artblocksPercentage);
+            uint256 foundationAmount = pricePerTokenInWei.div(100).mul(artblocksPercentage);
             if (foundationAmount > 0) {
                 artblocksAddress.transfer(foundationAmount);
             }
 
             // send remaining amount to artist
-            uint256 remaining = msg.value.sub(foundationAmount);
+            uint256 remaining = pricePerTokenInWei.sub(foundationAmount);
             artistAddress.transfer(remaining);
         }
     }
@@ -165,6 +173,8 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     }
 
     function updateMaxInvocations(uint256 _maxInvocations) public onlyWhitelisted returns (bool) {
+        require(_maxInvocations > invocations, "You must set max invocations greater than current invocations");
+
         maxInvocations = _maxInvocations;
         return true;
     }
@@ -198,6 +208,14 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
     // Accessor functions //
     ////////////////////////
 
+    function updateTokenNickname(uint256 _tokenId, string memory _nickname) public returns (bool) {
+        require(_exists(_tokenId), "Token must exist");
+        require(msg.sender == ownerOf(_tokenId), "You must own token");
+
+        tokenIdToNickname[_tokenId] = _nickname;
+        return true;
+    }
+
     function tokensOfOwner(address owner) external view returns (uint256[] memory) {
         return _tokensOfOwner(owner);
     }
@@ -210,6 +228,4 @@ contract SimpleArtistToken is CustomERC721Metadata, WhitelistedRole {
 
         return Strings.strConcat(tokenBaseURI, Strings.uint2str(_tokenId));
     }
-
-
 }

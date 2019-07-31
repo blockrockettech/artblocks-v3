@@ -12,7 +12,7 @@ contract('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, tokenO
     let price;
 
     beforeEach(async function () {
-        this.token = await SimpleArtistToken.new(artistsAccount, new BN(100), tokenBaseUri, new BN(5), {from: creator});
+        this.token = await SimpleArtistToken.new(artistsAccount, new BN(100), tokenBaseUri, 'SimpleArtistToken', 'SAT', {from: creator});
         price = await this.token.pricePerTokenInWei();
     });
 
@@ -159,8 +159,8 @@ contract('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, tokenO
                 const artistAddressWalletAfter = new BN((await web3.eth.getBalance(artistAddress)));
                 const purchaserWalletAfter = new BN((await web3.eth.getBalance(tokenOwnerOne)));
 
-                const foundationSplit = overpay.div(new BN(100)).mul(artblocksPercentage);
-                const artistSplit = overpay.sub(foundationSplit);
+                const foundationSplit = price.div(new BN(100)).mul(artblocksPercentage);
+                const artistSplit = price.sub(foundationSplit);
 
                 // 95% of value sent
                 artistAddressWalletAfter.should.be.bignumber.equal(artistAddressWallet.add(artistSplit));
@@ -169,7 +169,7 @@ contract('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, tokenO
                 artblocksAddressWalletAfter.should.be.bignumber.equal(artblocksAddressWallet.add(foundationSplit));
 
                 // check refund is applied and only pay for current price, not the overpay
-                purchaserWalletAfter.should.be.bignumber.equal(purchaserWallet.sub(gasCosts).sub(overpay));
+                purchaserWalletAfter.should.be.bignumber.equal(purchaserWallet.sub(gasCosts).sub(price));
             });
         });
 
@@ -387,6 +387,10 @@ contract('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, tokenO
             await shouldFail.reverting(this.token.updateMaxInvocations(new BN(100), {from: tokenOwnerOne}));
         });
 
+        it('should revert if less or equal to current invocations', async function () {
+            await shouldFail.reverting(this.token.updateMaxInvocations(new BN(0), {from: creator}));
+        });
+
         it('should update if owner', async function () {
             await this.token.updateMaxInvocations(new BN(100), {from: creator});
             (await this.token.maxInvocations()).should.be.bignumber.equal(new BN(100));
@@ -402,6 +406,29 @@ contract('SimpleArtistToken Tests', function ([_, creator, tokenOwnerOne, tokenO
             await this.token.updateApplicationChecksum(web3.utils.fromAscii('file-checksum'), {from: creator});
             const applicationChecksum = await this.token.applicationChecksum();
             web3.utils.toAscii(applicationChecksum).replace(/\0/g, '').should.be.equal('file-checksum');
+        });
+    });
+
+    describe('ensure only token owner can update nickname', function () {
+
+        let firstTokenId;
+
+        beforeEach(async function () {
+            await this.token.purchaseTo(tokenOwnerOne, {from: tokenOwnerOne, value: price});
+
+            const tokens = await this.token.tokensOfOwner(tokenOwnerOne);
+            tokens.length.should.be.equal(1);
+
+            firstTokenId = tokens[0].toString();
+        });
+
+        it('should revert if not owner', async function () {
+            await shouldFail.reverting(this.token.updateTokenNickname(firstTokenId, 'bob', {from: creator}));
+        });
+
+        it('should update if token owner', async function () {
+            await this.token.updateTokenNickname(firstTokenId, 'jerry', {from: tokenOwnerOne});
+            (await this.token.tokenIdToNickname(firstTokenId)).should.be.equal('jerry');
         });
     });
 
