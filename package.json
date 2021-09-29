@@ -14,7 +14,7 @@
   "author": "james.morgan@blockrocket.tech",
   "license": "MIT",
   "dependencies": {
-    "i": "^0.3.6",
+    "i": "^0.3.7",
     "npm": "^6.9.0"
   },
   "devDependencies": {
